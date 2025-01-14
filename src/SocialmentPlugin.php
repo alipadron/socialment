@@ -101,7 +101,7 @@ class SocialmentPlugin implements Plugin
             );
         });
 
-        if ($this->$visibleOnRegisterPage) {
+        if ($this->visibleOnRegisterPage) {
             $panel->renderHook(PanelsRenderHook::AUTH_REGISTER_FORM_BEFORE, function () {
                 $errorMessage = Session::get('socialment.error');
     

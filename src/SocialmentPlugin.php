@@ -8,6 +8,7 @@ use Filament\Contracts\Plugin;
 use Filament\Facades\Filament;
 use Filament\Panel;
 use Filament\Support\Concerns\EvaluatesClosures;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\View;
 
@@ -40,11 +41,20 @@ class SocialmentPlugin implements Plugin
 
     protected ?bool $multiPanel = null;
 
+    protected bool $visibleOnRegisterPage = false;
+
     public Panel $panel;
 
     public function getId(): string
     {
         return 'socialment';
+    }
+
+    public function visibleOnRegisterPage($visibleOnRegisterPage = true): static
+    {
+        $this->visibleOnRegisterPage = $visibleOnRegisterPage;
+
+        return $this;
     }
 
     public function getProviders(): array
@@ -59,7 +69,7 @@ class SocialmentPlugin implements Plugin
 
     public function register(Panel $panel): void
     {
-        $panel->renderHook('panels::auth.login.form.before', function () {
+        $panel->renderHook(PanelsRenderHook::AUTH_LOGIN_FORM_BEFORE, function () {
             $errorMessage = Session::get('socialment.error');
 
             if (! $this->evaluate($this->visible) || ! $errorMessage) {
@@ -72,9 +82,9 @@ class SocialmentPlugin implements Plugin
                     'message' => $errorMessage,
                 ]
             );
-        });
+        });        
 
-        $panel->renderHook('panels::auth.login.form.after', function () {
+        $panel->renderHook(PanelsRenderHook::AUTH_LOGIN_FORM_AFTER, function () {
             if (! $this->evaluate($this->visible)) {
                 return '';
             }
@@ -90,6 +100,40 @@ class SocialmentPlugin implements Plugin
                 ]
             );
         });
+
+        if ($this->$visibleOnRegisterPage) {
+            $panel->renderHook(PanelsRenderHook::AUTH_REGISTER_FORM_BEFORE, function () {
+                $errorMessage = Session::get('socialment.error');
+    
+                if (! $this->evaluate($this->visible) || ! $errorMessage) {
+                    return '';
+                }
+    
+                return View::make(
+                    config('socialment.view.register-error', 'socialment::register-error'),
+                    [
+                        'message' => $errorMessage,
+                    ]
+                );
+            });
+
+            $panel->renderHook(PanelsRenderHook::AUTH_REGISTER_FORM_AFTER, function () {
+                if (! $this->evaluate($this->visible)) {
+                    return '';
+                }
+    
+                $providers = array_merge(config('socialment.providers'), $this->providers);
+    
+                return View::make(
+                    config('socialment.view.providers-list', 'socialment::providers-list'),
+                    [
+                        'providers' => $providers,
+                        'multiPanel' => $this->isMultiPanel(),
+                        'panel' => $this->panel,
+                    ]
+                );
+            });
+        }
     }
 
     public function boot(Panel $panel): void
